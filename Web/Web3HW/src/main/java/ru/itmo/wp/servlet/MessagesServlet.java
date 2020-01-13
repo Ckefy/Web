@@ -1,0 +1,54 @@
+package ru.itmo.wp.servlet;
+
+import com.google.gson.Gson;
+
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
+import java.util.ArrayList;
+
+public class MessagesServlet extends HttpServlet {
+
+    private ArrayList<Message> array = new ArrayList<>();
+
+    private class Message {
+        final private String user;
+        final private String text;
+
+        Message (String user, String text) {
+            this.user = user;
+            this.text = text;
+        }
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setContentType("application/json");
+        response.setCharacterEncoding("windows-1251");
+        String uri = request.getRequestURI();
+        HttpSession session = request.getSession();
+        if (uri.endsWith("/message/auth")) {
+            String curUser = request.getParameter("user");
+            if (curUser != null) session.setAttribute("user", curUser);
+            String json = new Gson().toJson(session.getAttribute("user"));
+            response.getWriter().print(json);
+            response.getWriter().flush();
+        } else if (uri.endsWith("/message/add")){
+            String curText = request.getParameter("text");
+            String curUser = session.getAttribute("user").toString();
+            if (curUser == null) {
+                curUser = "";
+            }
+            array.add(new Message(curUser, curText));
+            String json = new Gson().toJson(curUser);
+            response.getWriter().print(json);
+            response.getWriter().flush();
+        } else if (uri.endsWith("/message/findAll")){
+            String json = new Gson().toJson(array);
+            response.getWriter().print(json);
+            response.getWriter().flush();
+        }
+    }
+}

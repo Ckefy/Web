@@ -1,0 +1,61 @@
+package ru.itmo.wp.model.database;
+
+import org.mariadb.jdbc.MariaDbDataSource;
+import ru.itmo.wp.model.exception.RepositoryException;
+
+import javax.sql.DataSource;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Properties;
+
+public class DatabaseUtils {
+    public static DataSource getDataSource() {
+        return DataSourceHolder.INSTANCE;
+    }
+
+    private static final class DataSourceHolder {
+        private static final DataSource INSTANCE;
+        private static final Properties properties = new Properties();
+
+        static {
+            try {
+                properties.load(DataSourceHolder.class.getResourceAsStream("/application.properties"));
+            } catch (IOException e) {
+                throw new RuntimeException("Can't load /application.properties.", e);
+            }
+
+            try {
+                MariaDbDataSource instance = new MariaDbDataSource();
+                instance.setUrl(properties.getProperty("database.url"));
+                instance.setUser(properties.getProperty("database.user"));
+                instance.setPassword(properties.getProperty("database.password"));
+                INSTANCE = instance;
+            } catch (SQLException e) {
+                throw new RuntimeException("Can't initialize DataSource.", e);
+            }
+
+            try (Connection connection = INSTANCE.getConnection()) {
+                if (connection == null) {
+                    throw new RuntimeException("Can't create testing connection via DataSource.");
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException("Can't create testing connection via DataSource.", e);
+            }
+        }
+    }
+    public static PreparedStatement getStatement(String sql, String... parameters) {
+        try {
+            Connection connection = DataSourceHolder.INSTANCE.getConnection();
+            PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            for (int i = 0; i < parameters.length; i++) {
+                statement.setString(i + 1, parameters[i]);
+            }
+            return statement;
+        } catch (SQLException e) {
+            throw new RepositoryException("Can't save.", e);
+        }
+    }
+}
